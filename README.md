@@ -18,4 +18,4 @@ Missing external documentation at the moment. Functions all have docstrings, how
 
 ### Examples
 
-Two files exist as examples at the moment. [outvar.py](/tree/master/examples/outvar.py) and [patch.py](/tree/master/examples/patch.py). ``outvar.py`` gives examples for usage of the ``OutVar`` class, and ``patch.py`` gives examples for usage of the ``Patching`` class.
+Two files exist as examples at the moment. [outvar.py](/examples/outvar.py) and [patch.py](/examples/patch.py). ``outvar.py`` gives examples for usage of the ``OutVar`` class, and ``patch.py`` gives examples for usage of the ``Patching`` class.
