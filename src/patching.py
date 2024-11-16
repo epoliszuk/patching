@@ -40,7 +40,7 @@ or method.
 import inspect
 from types import FunctionType, ModuleType
 from typing import Any, TypeVar, TypeAlias
-from copy import copy
+from copy import copy, deepcopy
 from collections.abc import Iterable, Callable
 from functools import partial, update_wrapper
 
@@ -164,7 +164,15 @@ Defaults to None.
         for instr in copy(newcode):
             # we want to change the return value of the function
             # continue when the opcode isn't returning from the function.
-            if instr.name != "RETURN_VALUE": continue
+
+            #print(instr.__class__, instr)
+
+            if not instr.__class__ is Instr:
+                ind += 1
+                continue
+            if instr.name != "RETURN_VALUE":
+                ind += 1
+                continue
 
             # get the line number of the return value
             # the new instructions should inherit this
@@ -172,22 +180,25 @@ Defaults to None.
 
             # place all of the captured parameters in the stack
             # after the original return value
-            [newcode.insert(ind - 1, Instr('LOAD_FAST', x, lineno=ln)) for x in names]
+            for x in names:
+                newcode.insert(ind, Instr('LOAD_FAST', x, lineno=ln))
+                ind += 1
+
             # build a tuple with all of the necessary arguments.
-            newcode.insert(ind - 1, Instr('BUILD_TUPLE', len(names) + 1, lineno=ln))
+            newcode.insert(ind, Instr('BUILD_TUPLE', len(names) + 1, lineno=ln))
 
             # keep track of the actual index we should insert at
-            ind += len(names) + 1
+            ind += 2
 
         # build the old function from parts, as a deepcopy
 
         ### pylint: disable-next=invalid-name
         OLD_FUNC = FunctionType(
-            func.__code__,
+            deepcopy(func.__code__),
             func.__globals__,
-            func.__name__,
-            func.__defaults__,
-            func.__closure__
+            deepcopy(func.__name__),
+            deepcopy(func.__defaults__),
+            deepcopy(func.__closure__)
         )
 
         # replace the original functions code with the patched code
@@ -213,6 +224,7 @@ Defaults to None.
             return func
 
         func.__code__ = self.get_original(func).__code__
+        del func.OUTPATCHINFO
 
         return func
 
@@ -336,6 +348,8 @@ class Patching:
 
                         self._PATCH_INFO[result.__name__].remove(tup)
 
+                return result
+
             builtins.__import__ = self.elementary_postfix(
                 builtins.__import__,
                 process_imports
@@ -385,14 +399,24 @@ class Patching:
                 nonlocal prefix
                 _result = None
 
-                OutVar.patch(prefix, '_result')
-                prefix_out = prefix(args, kwargs, _result)
-                _result = prefix_out[1]
+                has_result = '_result' in inspect.signature(prefix).parameters
 
-                if prefix_out[0] is True:
-                    return this_func(*args, **kwargs)
-                else:
+                if has_result:
+                    OutVar.patch(prefix, '_result')
+
+                prefix_out = prefix(args, kwargs, _result)
+
+                if has_result:
+                    _result = prefix_out[1]
+
+                    if prefix_out[0] is True:
+                        return this_func(*args, **kwargs)
+
                     return _result
+
+                else:
+                    return this_func(*args, **kwargs) if prefix_out else None
+
 
             setattr(base, name, _wrapper)
 
@@ -456,8 +480,11 @@ class Patching:
 
         return _prefix_wrapper
 
-    def elementary_postfix(self, func: Callable[..., _Helper.T], prefix: Callable[..., _Helper.T]) \
-        -> Callable[..., _Helper.T]:
+    def elementary_postfix(
+            self,
+            func: Callable[..., _Helper.T],
+            postfix: Callable[..., _Helper.T]
+            ) -> Callable[..., _Helper.T]:
         """Creates a basic monkeypatch postfix wrapper for a function.
 
         Postfix functions should have 3 parameters: ``args``, ``kwargs``, and ``result``.
@@ -476,7 +503,7 @@ class Patching:
         def _postfix_wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
 
-            return prefix(args, kwargs, result)
+            return postfix(args, kwargs, result)
 
         return _postfix_wrapper
 
