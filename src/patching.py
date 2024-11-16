@@ -414,8 +414,7 @@ class Patching:
 
                     return _result
 
-                else:
-                    return this_func(*args, **kwargs) if prefix_out else None
+                return this_func(*args, **kwargs) if prefix_out else None
 
 
             setattr(base, name, _wrapper)
@@ -450,11 +449,19 @@ class Patching:
 
                 _result = this_func(*args, **kwargs)
 
-                postfix = OutVar.patch(postfix, '_result')
-                postfix_out = postfix(args, kwargs, _result)
-                _result = postfix_out[1]
+                has_result = '_result' in inspect.signature(postfix).parameters
 
-                return _result or postfix_out[0]
+                if has_result:
+                    postfix = OutVar.patch(postfix, '_result')
+
+                postfix_out = postfix(args, kwargs, _result)
+
+                if has_result:
+                    _result = postfix_out[1]
+
+                    return _result or postfix_out[0]
+
+                return _result
 
             setattr(base, name, _wrapper)
 
