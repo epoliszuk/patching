@@ -467,8 +467,11 @@ class Patching:
 
         else: raise AttributeError(f"{name} not found in {base}.")
 
-    def elementary_prefix(self, func: Callable[..., _Helper.T], prefix: Callable[..., _Helper.T]) \
-        -> Callable[..., _Helper.T]:
+    def elementary_prefix(
+            self,
+            func: Callable[..., _Helper.T],
+            prefix: Callable[..., _Helper.T]
+            )-> Callable[..., _Helper.T]:
         """Creates a basic monkeypatch prefix wrapper for a function.
 
         Prefix functions should have 2 parameters: ``args`` and ``kwargs``.
@@ -483,7 +486,7 @@ class Patching:
 
         def _prefix_wrapper(*args, **kwargs):
             prefix(args, kwargs)
-            return func(args, kwargs)
+            return func(*args, *kwargs)
 
         return _prefix_wrapper
 
