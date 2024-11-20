@@ -43,7 +43,6 @@ from types import FunctionType, ModuleType
 from typing import Any, TypeVar, TypeAlias
 from copy import copy, deepcopy
 from collections.abc import Iterable, Callable
-from functools import partial, update_wrapper
 
 import bytecode.bytecode as bc
 import bytecode
@@ -54,56 +53,9 @@ class _Helper:
     T = TypeVar('T')
 
 
-class Static:
-    """
-    Use as a decorator on a class definition to make the class 'static'.
-
-    Despite the name, this does not decorate each method with ``@staticmethod``.
-    This class is meant for use with classes that only require a single shared instance.
-
-    Will error if:
-        - The input to Static is not a class or not instantiatable.
-        - The class takes additional parameters in its __init__ method.
-    """
-
-    def __init__(self, cls: type):
-        if not inspect.isclass(cls):
-            raise TypeError(
-                f"Failed to make static the input class '{cls.__name__}'. " +
-                "The input to Static must be a class, not an instance.")
-
-        try:
-            self.cls = cls()
-
-        except TypeError as exc:
-            raise TypeError(
-                f"Failed to make static the input class '{cls.__name__}'. " +
-                "The input to Static must be a class, not an instance. " + 
-                "Additionally, the class must not take additional parameters in __init__.") from exc
-
-        self.props = {}
-
-        for prop in dir(cls):
-            if prop.startswith("__") and prop.endswith("__"):
-                continue
-
-            setattr(self, prop, partial(getattr(cls, prop), self.cls))
-            update_wrapper(getattr(self, prop), self.cls)
-
-        self.__doc__ = self.cls.__doc__
-
-
-    def __getattr__(self, name: str):
-        if name in self.props:
-            return self.props[name]
-
-        return getattr(self.cls, name)
-
-
-@Static
 class OutVar:
     """
-    A class that patches functions and methods to return the final state of parameters upon return.
+    A static class that patches functions and methods to return the final state of parameters upon return.
 
     Contains:
         - ``patch``: A method to patch a function or method for returning specified out variables.
@@ -115,7 +67,8 @@ method.
         - ``is_patched``: A method to check if a function or method is patched for out variables.
     """
 
-    def patch(self, func: _Helper.CallableT, names: str | Iterable[str] = None) \
+    @staticmethod
+    def patch(func: _Helper.CallableT, names: str | Iterable[str] = None) \
             -> _Helper.CallableT:
         """
         Used to wrap a function and return the final state of parameters upon return.
@@ -147,12 +100,12 @@ Defaults to None.
 
         # if the function is already patched, get the original function
         # repatch the original function with the new params
-        if self.is_patched(func):
-            if not self.get_capture(func) is None:
-                names += self.get_capture(func)
+        if OutVar.is_patched(func):
+            if not OutVar.get_capture(func) is None:
+                names += OutVar.get_capture(func)
 
             # get the original function
-            oldfunc = self.get_original(func)
+            oldfunc = OutVar.get_original(func)
 
         # if the original function has been accessed, operate on that code
         # if not, use the function from arguments
@@ -212,7 +165,8 @@ Defaults to None.
 
         return func
 
-    def unpatch(self, func: _Helper.CallableT) -> _Helper.CallableT:
+    @staticmethod
+    def unpatch(func: _Helper.CallableT) -> _Helper.CallableT:
         """Reverts a function patched with ``OutVar.patch`` to its original state.
 
         Args:
@@ -221,15 +175,16 @@ Defaults to None.
         Returns:
             _Helper.CallableT: The original function or method.
         """
-        if not self.is_patched(func):
+        if not OutVar.is_patched(func):
             return func
 
-        func.__code__ = self.get_original(func).__code__
+        func.__code__ = OutVar.get_original(func).__code__
         del func.OUTPATCHINFO
 
         return func
 
-    def get_info(self, func: Callable) -> dict:
+    @staticmethod
+    def get_info(func: Callable) -> dict:
         """Get information about a function that has been patched with ``OutVar.patch``.
 
         Args:
@@ -238,12 +193,13 @@ Defaults to None.
         Returns:
             dict: The information about the patch.
         """
-        if not self.is_patched(func):
+        if not OutVar.is_patched(func):
             return None
 
         return func.OUTPATCHINFO
 
-    def get_capture(self, func: Callable) -> tuple:
+    @staticmethod
+    def get_capture(func: Callable) -> tuple:
         """Get the captured parameters / out vars of a function patched with ``OutVar.patch``.
 
         Args:
@@ -252,12 +208,13 @@ Defaults to None.
         Returns:
             tuple: The captured parameters / out vars.
         """
-        if not self.is_patched(func):
+        if not OutVar.is_patched(func):
             return None
 
         return func.OUTPATCHINFO["captured"]
 
-    def get_original(self, func: Callable) -> Callable:
+    @staticmethod
+    def get_original(func: Callable) -> Callable:
         """Get the original function or method of a function patched with ``OutVar.patch``.
 
         Args:
@@ -266,12 +223,13 @@ Defaults to None.
         Returns:
             Callable: The function or method before the patch.
         """
-        if not self.is_patched(func):
+        if not OutVar.is_patched(func):
             return None
 
         return func.OUTPATCHINFO["original"]
 
-    def is_patched(self, func: Callable) -> bool:
+    @staticmethod
+    def is_patched(func: Callable) -> bool:
         """Returns whether or not a function or method has been patched with ``OutVar.patch``.
 
         Args:
