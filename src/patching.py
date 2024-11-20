@@ -38,6 +38,7 @@ or method.
 ### pylint: disable=multiple-statements
 
 import inspect
+import sys
 from types import FunctionType, ModuleType
 from typing import Any, TypeVar, TypeAlias
 from copy import copy, deepcopy
@@ -409,12 +410,12 @@ class Patching:
                 if has_result:
                     _result = prefix_out[1]
 
-                    if prefix_out[0] is True:
+                    if not prefix_out[0] is False:
                         return this_func(*args, **kwargs)
 
                     return _result
 
-                return this_func(*args, **kwargs) if prefix_out else None
+                return None if prefix_out is False else this_func(*args, **kwargs)
 
 
             setattr(base, name, _wrapper)
@@ -521,7 +522,7 @@ class Patching:
         """A function that simplifies the process of prefixing a function or method.
 
         If a module and the corresponding function name are found in the current global scope, \
-        the function will be prefixed immediately.
+        the function will be prefixed immediately. Use __main__ for the current module.
 
         If a module and the corresponding function name are *not* found in the current global \
         scope, add the current patch to a queue that awaits the importing of the given module.
@@ -544,7 +545,12 @@ class Patching:
 
         last_frame_globals = inspect.currentframe().f_back.f_globals
 
-        if module in last_frame_globals \
+        if module in sys.modules and name in sys.modules[module].__dict__:
+            module = sys.modules[module]
+
+            self._prefix_atom(module, name, prefix)
+
+        elif module in last_frame_globals \
                 and last_frame_globals[module].__class__ is ModuleType:
 
             module = last_frame_globals[module]
@@ -561,7 +567,7 @@ class Patching:
         """A function that simplifies the process of postfixing a function or method.
 
         If a module and the corresponding function name are found in the current global scope,
-        the function will be postfixed immediately.
+        the function will be postfixed immediately. Use __main__ for the current module.
 
         If a module and the corresponding function name are *not* found in the current global
         scope, add the current patch to a queue that awaits the importing of the given module.
@@ -572,7 +578,7 @@ class Patching:
 
         ``_result`` can be set to a new value in the postfix function, which will be returned
         instead of the original return value.
-        If ``_result`` is falsy, return the prefix return value.
+        If ``_result`` is falsy, return the postfix return value.
 
 
         Args:
@@ -582,7 +588,12 @@ class Patching:
         """
         last_frame_globals = inspect.currentframe().f_back.f_globals
 
-        if module in last_frame_globals \
+        if module in sys.modules and name in sys.modules[module].__dict__:
+            module = sys.modules[module]
+
+            self._postfix_atom(module, name, postfix)
+
+        elif module in last_frame_globals \
                 and last_frame_globals[module].__class__ is ModuleType:
 
             module = last_frame_globals[module]

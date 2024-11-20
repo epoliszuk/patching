@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Patching is a Python module to simplify and expand the capabilities of [monkeypatching](https://en.wikipedia.org/wiki/Monkey_patch). It aims to emulate in part the functionality of [Harmony](https://harmony.pardeike.net/) for C#.
+Patching is a Python module to simplify and expand the capabilities of runtime [monkeypatching](https://en.wikipedia.org/wiki/Monkey_patch). It aims to emulate in part the functionality of [Harmony](https://harmony.pardeike.net/) for C#.
 
 ## Content
 
