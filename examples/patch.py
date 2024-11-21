@@ -1,3 +1,4 @@
+# no copywrite notice on this file intentionally. go wild lol
 """
 Example file for the Patching class of the patching module.
 """
@@ -190,8 +191,6 @@ def postfix_four(_, __, _result) -> int:
     print(_result)
 
     _result += 12
-
-    return 5
 
 Patch.postfix("math", "sin", postfix_four)
 

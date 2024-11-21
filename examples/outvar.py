@@ -1,3 +1,4 @@
+# no copywrite notice on this file intentionally. go wild lol
 """
 Example file for the OutVar class of the patching module.
 """
